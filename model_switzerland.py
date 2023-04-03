@@ -57,13 +57,14 @@ print(data.to_string()) #.head(200)
 # Removing unknown values - if needed
 
 
-data = data[data.target!=0]
-data.loc[data["target"] == 4, "target"] = 3
-# data.loc[data["target"] == 3, "target"] = 1
-# data.loc[data["target"] == 2, "target"] = 1
+#data = data[data.target!=0]
+data.loc[data["target"] == 1, "target"] = 0
+data.loc[data["target"] == 4, "target"] = 1
+data.loc[data["target"] == 3, "target"] = 1
+data.loc[data["target"] == 2, "target"] = 1
 # targets = ['0', '1', '2', '3', '4']
-targets = ['1', '2', '3']
-# targets = ['0','1']
+#targets = ['1', '2', '3']
+targets = ['0','1']
 ##############################################
 
 print("\n######################################################")
@@ -73,8 +74,16 @@ print("######################################################\n")
 
 #Figure is saved in the img folder
 
-
+data.hist(column='target')
+plt.savefig(f'img/hist.pdf')
 print("##############################\n\n")
+
+del data['ca']
+mask = data.isna().sum(axis=1) >= 3
+data = data[~mask].sort_values('target')
+
+print(data.to_string())
+print(len(data))
 
 #######################
 # SPLITTING THE DATA  #
@@ -99,8 +108,11 @@ import random
 used_columns = ['age', 'sex', 'cp', 'trestbps', 'restecg', 'thalach', 'exang', 'oldpeak', 'slope', 'target']
 data = data[used_columns]
 
+for column in used_columns:
+  data.hist(column=column)
+  plt.savefig(f'img/{column}hist.pdf')
 
-
+# Here, random numbers are filled in the empty cells (some features have float values and require extra care).
 for i in used_columns:
     if i == 'target':
         data[i] = data[i]
@@ -118,32 +130,49 @@ for i in used_columns:
         except Exception as e:
             print(i, e)    
 
+# #Here, the number of instances of the targets is counted.
+# instances_1 = (data['target'] == 1).sum()
+# print(instances_1)
+# instances_2 = (data['target'] == 2).sum()
+# print(instances_2)
+# instances_3 = (data['target'] == 3).sum()
+# print(instances_3)
+
+# # Here, the number of datapoint of target 1 is reduced to the same number of target 2 (the least frequent target).
+# for datapoint in range(0,len(data)):
+#   if instances_1 <= instances_2:
+#     break
+#   else:
+#     sample1 = data[data['target'] == 1].sample()
+#     data = data.drop(sample1.index)
+#     instances_1 -= 1
+
+# # Here, the number of datapoint of target 3 is reduced to the same number of target 2 (the least frequent target).
+# for datapoint in range(0,len(data)):
+#   if instances_3 <= instances_2:
+#     break
+#   else:
+#     sample3 = data[data['target'] == 3].sample()
+#     data = data.drop(sample3.index)
+#     instances_3 -= 1
+
+# Count the number of instances (datapoints) per label
+instances_0 = (data['target'] == 0).sum()
+print(instances_0)
 instances_1 = (data['target'] == 1).sum()
 print(instances_1)
-instances_2 = (data['target'] == 2).sum()
-print(instances_2)
-instances_3 = (data['target'] == 3).sum()
-print(instances_3)
 
-for datapoint in range(0,len(data)):
-  if instances_1 <= instances_2:
+# For loop that removes random samples from the label with a more frequent occurrence, until the frequency is equal to the other label.
+for datapoint in range(0,instances_1):
+  if instances_1 <= instances_0:
     break
   else:
     sample1 = data[data['target'] == 1].sample()
     data = data.drop(sample1.index)
     instances_1 -= 1
+    #print(instances_0)
 
-for datapoint in range(0,len(data)):
-  if instances_3 <= instances_2:
-    break
-  else:
-    sample3 = data[data['target'] == 3].sample()
-    data = data.drop(sample3.index)
-    instances_3 -= 1
 
-data.hist(column='target')
-plt.savefig('img/hist.pdf')
-print("Check the Figure in the img folder ")
 
 print(data.to_string()) #.head(200)
 
@@ -206,10 +235,10 @@ from sklearn.ensemble import RandomForestClassifier
 # clf = DummyClassifier(strategy="constant", constant=0)
 
 # Kneighbhors Classifier
-# clf = KNeighborsClassifier(4)
+clf = KNeighborsClassifier(7)
 
 #Random Forest Classifier
-clf = RandomForestClassifier(n_estimators=10)
+# clf = RandomForestClassifier(n_estimators=6)
 
 #Train the model using the training sets y_pred=clf.predict(X_test)
 clf.fit(X_train, y_train)
@@ -280,7 +309,7 @@ print(
   "#########################################################################\n\n"
 )
 
-scores = cross_validate(clf, X, y, cv=3, scoring=('accuracy', 'precision_micro', 'recall_macro', 'f1_micro', 'f1_macro'), return_train_score=True)
+scores = cross_validate(clf, X, y, cv=4, scoring=('accuracy', 'precision_micro', 'recall_macro', 'f1_micro', 'f1_macro'), return_train_score=True)
 
 printScores(scores)
 
