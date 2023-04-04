@@ -43,6 +43,9 @@ import matplotlib.pyplot as plt
 
 # Reading the data
 data = pd.read_csv('data/processed.switzerland.csv')
+clev_data = pd.read_csv('data/processed.cleveland.csv')
+
+clev_data = clev_data[['age', 'sex', 'cp', 'trestbps', 'restecg', 'thalach', 'exang', 'oldpeak', 'slope', 'target']].dropna()
 
 # Print the first 5 rows of the dataframe
 print("\n######################################################")
@@ -56,6 +59,10 @@ print(data.to_string()) #.head(200)
 #############################################
 # Removing unknown values - if needed
 
+clev_data.loc[clev_data["target"] == 1, "target"] = 0
+clev_data.loc[clev_data["target"] == 4, "target"] = 1
+clev_data.loc[clev_data["target"] == 3, "target"] = 1
+clev_data.loc[clev_data["target"] == 2, "target"] = 1
 
 #data = data[data.target!=0]
 data.loc[data["target"] == 1, "target"] = 0
@@ -83,7 +90,7 @@ mask = data.isna().sum(axis=1) >= 3
 data = data[~mask].sort_values('target')
 
 print(data.to_string())
-print(len(data))
+print(data.shape[0])
 
 #######################
 # SPLITTING THE DATA  #
@@ -111,24 +118,6 @@ data = data[used_columns]
 for column in used_columns:
   data.hist(column=column)
   plt.savefig(f'img/{column}hist.pdf')
-
-# Here, random numbers are filled in the empty cells (some features have float values and require extra care).
-for i in used_columns:
-    if i == 'target':
-        data[i] = data[i]
-    elif i == 'slope':
-        data[i] = data[i].fillna(random.randrange(1,4,1))
-    elif i == 'oldpeak':
-        min = min(data[i])
-        max = max(data[i])
-        print(i, min, max)
-        data[i] = data[i].fillna(round(random.uniform(min,max),1))
-    else:    
-        try:
-            data[i] = data[i].fillna(random.randrange(min(data[i]),max(data[i]),1))
-            print(i, min(data[i]), max(data[i]))
-        except Exception as e:
-            print(i, e)    
 
 # #Here, the number of instances of the targets is counted.
 # instances_1 = (data['target'] == 1).sum()
@@ -158,21 +147,62 @@ for i in used_columns:
 
 # Count the number of instances (datapoints) per label
 instances_0 = (data['target'] == 0).sum()
-print(instances_0)
+print('instances of 0:', instances_0)
 instances_1 = (data['target'] == 1).sum()
-print(instances_1)
+print('instances of 1:', instances_1)
+
+# filter for only target = 1 datapoints
+target1data = data[data['target'] == 1]
+
+# Sort the filtered DataFrame by the number of NaN values in each row
+target1NaNsorted = target1data.isna().sum(axis=1).sort_values(ascending=False)
+#print(target1NaNsorted.to_string())
+
 
 # For loop that removes random samples from the label with a more frequent occurrence, until the frequency is equal to the other label.
 for datapoint in range(0,instances_1):
   if instances_1 <= instances_0:
     break
   else:
-    sample1 = data[data['target'] == 1].sample()
-    data = data.drop(sample1.index)
-    instances_1 -= 1
-    #print(instances_0)
+    if len(target1NaNsorted) != 0:
+      # Get the index label of the first row (i.e., the row with the largest number of NaN values)   
+      idx = target1NaNsorted.idxmax()
+      data = data.drop(index=idx)
+      target1NaNsorted = target1NaNsorted.drop(idx)
+      instances_1 -= 1
+      #print(instances_0)
+    else:
+      sample1 = data[data['target'] == 1].sample()
+      data = data.drop(sample1.index)
+      instances_1 -= 1
+      #print(instances_0)
 
+print(data.to_string()) #.head(200)
 
+# Here, random numbers are filled in the empty cells (some features have float values and require extra care).
+for i in used_columns:
+    if i == 'target':
+        data[i] = data[i]
+    elif i == 'slope':
+        data[i] = data[i].fillna(random.randrange(1,4,1))
+    elif i == 'oldpeak':
+        min = min(data[i])
+        max = max(data[i])
+        print(i, min, max)
+        data[i] = data[i].fillna(round(random.uniform(min,max),1))
+    else:    
+        try:
+            data[i] = data[i].fillna(random.randrange(min(data[i]),max(data[i]),1))
+            print(i, min(data[i]), max(data[i]))
+        except Exception as e:
+            print(i, e)    
+
+used_features = ['age', 'sex', 'cp', 'trestbps', 'restecg', 'thalach', 'exang', 'oldpeak', 'slope']
+def normalize_age(data):
+    return (data - data.min()) / (data.max() - data.min())
+  
+for i in used_features:
+  data[i] = normalize_age(data[i])
 
 print(data.to_string()) #.head(200)
 
@@ -181,6 +211,11 @@ print(data.to_string()) #.head(200)
 X = data[[ 'age', 'sex', 'cp', 'trestbps', 'restecg', 'thalach', 'exang', 'oldpeak', 'slope']] #  'fbs', 'ca', 'chol', 'thal'
 # Labels
 y = data['target']  # Labels
+
+X_test1 = clev_data[['age', 'sex', 'cp', 'trestbps', 'restecg', 'thalach', 'exang', 'oldpeak', 'slope']]
+y_test1 = clev_data['target']
+
+print(clev_data.to_string())
 
 print("\n ### FEATURES ###")
 print(list(X))
@@ -235,16 +270,17 @@ from sklearn.ensemble import RandomForestClassifier
 # clf = DummyClassifier(strategy="constant", constant=0)
 
 # Kneighbhors Classifier
-clf = KNeighborsClassifier(7)
+# clf = KNeighborsClassifier(7)
 
 #Random Forest Classifier
-# clf = RandomForestClassifier(n_estimators=6)
+clf = RandomForestClassifier(n_estimators=6)
 
 #Train the model using the training sets y_pred=clf.predict(X_test)
 clf.fit(X_train, y_train)
 
 # Prediction happens here!
 y_pred = clf.predict(X_test)
+# y_pred1 = clf.predict(X_test1)
 print(clf)
 print("\n\n")
 
