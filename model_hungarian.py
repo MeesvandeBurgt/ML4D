@@ -71,9 +71,7 @@ print("######################################################\n")
 ##### Understand the distribution of the Labels ###########
 
 #Figure is saved in the img folder
-data.hist(column='target')
-plt.savefig('img/hist.pdf')
-print("Check the Figure in the img folder ")
+
 
 print("##############################\n\n")
 
@@ -97,17 +95,26 @@ print(
 
 import random
 
+# Here we change remove labels that are not usable ('slope', 'ca', 'thal'), by replacing the old datafram with a new one.
 used_columns = ['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg', 'thalach', 'exang', 'oldpeak', 'target']
 data = data[used_columns]
 
+# Save 
+for column in used_columns:
+  data.hist(column=column)
+  plt.savefig(f'img/{column}hist.pdf')
+
+# For all features (columns) that we use for the model, we fill all NaN values with random values between the min. and max. values of the feature's distribution.
 for i in used_columns:
   data[i] = data[i].fillna(random.randrange(min(data[i]),max(data[i]),1))
 
+# Count the number of instances (datapoints) per label
 instances_0 = (data['target'] == 0).sum()
 print(instances_0)
 instances_1 = (data['target'] == 1).sum()
 print(instances_1)
 
+# For loop that removes random samples from the label with a more frequent occurrence, until the frequency is equal to the other label.
 for datapoint in range(0,instances_0):
   if instances_0 <= instances_1:
     break
@@ -115,9 +122,13 @@ for datapoint in range(0,instances_0):
     sample0 = data[data['target'] == 0].sample()
     data = data.drop(sample0.index)
     instances_0 -= 1
-    print(instances_0)
+    # print(instances_0)
 
+# Here we show the new dataset again to validate all empty cells are succesfully replaced with random values.
 print(data.to_string()) #.head(200)
+
+
+print("Check the Figure in the img folder ")
 
 # Split features from labels
 # Features
@@ -181,7 +192,7 @@ from sklearn.ensemble import RandomForestClassifier
 # clf = KNeighborsClassifier(4)
 
 #Random Forest Classifier
-clf = RandomForestClassifier(n_estimators=10)
+clf = RandomForestClassifier(n_estimators=6)
 
 #Train the model using the training sets y_pred=clf.predict(X_test)
 clf.fit(X_train, y_train)
